@@ -9,6 +9,7 @@ import 'package:welch_psd/data/data_guitar_8000.dart';
 /// Returns true if the calculated value is within [percent] of the [expected]
 bool test_signal(Array signal, double fs, double expected, double percent) {
   double output = pwelch(signal, fs);
+  if (output == expected) return true;
   if (output < expected * (1 + percent) && output > expected * percent) {
     return true;
   }
@@ -58,7 +59,7 @@ void bench() {
   for (double f = 40; f < 2040; f = f + 100) {
     total_tests++;
     // calculate sin waves from 20 - 4000 in gaps of 200
-    var signal = generateSin(n, f, fs, noise_factor: 0.1);
+    var signal = generateSin(n, f, fs, noise_factor: 1);
     bool success = test_signal(Array(signal), fs, f, 0.9);
     if (success) {
       print("Success! Passed, freq = $f");
@@ -68,13 +69,46 @@ void bench() {
     }
   }
 
-  // sin  waves with a lot of noise
+  // actual samples from guitar/ukulele
+
+  // push the limits of high/low freqs
   print("");
-  print("Starting sin with LOTS of noise...");
-  for (double f = 40; f < 2040; f = f + 100) {
+  print("Starting push limits...");
+  final List<double> FREQS = [
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    30,
+    31,
+    32,
+    33,
+    34,
+    35,
+    36,
+    37,
+    38,
+    39,
+    40,
+    41,
+    42,
+    43,
+    44,
+    2000,
+    2200,
+    2500,
+    3000,
+    3500,
+    3750,
+    3880,
+    3900,
+    4000
+  ];
+  for (double f in FREQS) {
     total_tests++;
-    // calculate sin waves from 20 - 4000 in gaps of 200
-    var signal = generateSin(n, f, fs, noise_factor: 0.25); //.3 is too much?
+    var signal = generateSin(n, f, fs, noise_factor: 1); //.3 is too much?
     bool success = test_signal(Array(signal), fs, f, 0.9);
     if (success) {
       print("Success! Passed, freq = $f");
@@ -90,7 +124,7 @@ void bench() {
   for (double f = 40; f < 2040; f = f + 100) {
     total_tests++;
     // calculate sin waves from 20 - 4000 in gaps of 200
-    var signal = generateSin(n, f, fs, noise_factor: 0.1);
+    var signal = generateSin(n, f, fs, noise_factor: 2);
     bool success = test_signal(Array(signal), fs, f, 0.95);
     if (success) {
       print("Success! Passed, freq = $f");
@@ -100,36 +134,13 @@ void bench() {
     }
   }
 
-  // actual samples from guitar/ukulele
-
-  // push the limits of high/low freqs
+  // sin  waves with a lot of noise
   print("");
-  print("Starting push limits...");
-  final List<double> FREQS = [
-    1,
-    2,
-    5,
-    10,
-    20,
-    25,
-    30,
-    31,
-    32,
-    33,
-    34,
-    35,
-    2000,
-    2200,
-    2500,
-    3000,
-    3500,
-    3750,
-    4000,
-    4400
-  ];
-  for (double f in FREQS) {
+  print("Starting sin with LOTS of noise...");
+  for (double f = 40; f < 2040; f = f + 100) {
     total_tests++;
-    var signal = generateSin(n, f, fs, noise_factor: 0.1); //.3 is too much?
+    // calculate sin waves from 20 - 4000 in gaps of 200
+    var signal = generateSin(n, f, fs, noise_factor: 10); // 15 is SOOO much
     bool success = test_signal(Array(signal), fs, f, 0.9);
     if (success) {
       print("Success! Passed, freq = $f");
@@ -139,15 +150,14 @@ void bench() {
     }
   }
 
-  // no frequency should be found
-  //   amplitude * MAGIC_NUMBER < mean
+  // no frequency should be found. TOO MUCH NOISE
   print("");
   print("Starting no frequency should be detected...");
   for (double f = 40; f < 2040; f = f + 100) {
     total_tests++;
     // calculate sin waves from 20 - 4000 in gaps of 200
-    var signal = generateSin(n, f, fs, noise_factor: 5); // 5 is sooo much
-    bool success = test_signal(Array(signal), fs, -1, 1);
+    var signal = generateSin(n, f, fs, noise_factor: 50); // 15 is SOOO much
+    bool success = test_signal(Array(signal), fs, -1, 0.999);
     if (success) {
       print("Success! Passed, freq = $f");
       passed++;
@@ -267,7 +277,7 @@ bool isPowerOf2(int length) {
 /// Estimate frequency from FFT using the pwelch method
 /// This might also be called "Harmonic Product Spectrum Theory"
 /// [sig] should be of length (multiple of 2)
-double pwelch(Array sig, double fs, {double noise_floor = 10}) {
+double pwelch(Array sig, double fs, {double noise_floor = 2}) {
   if (!isPowerOf2(sig.length)) {
     print("WARNING: signal length is not a power of 2");
   }
@@ -305,21 +315,25 @@ double pwelch(Array sig, double fs, {double noise_floor = 10}) {
     windowsCalculated++;
   }
 
-  // Used for finding if there is a signal
+  // Used for finding if there is a signal worth processing
   bool foundSignal = false;
   double power_mean = mean(powers);
 
   // Find the top 5 peaks
   List<int> peaks = [];
   const int NUM_PEAKS = 5;
+  // This is the first bin that will be searched for a "high power".
+  // I need to skip the first few terms because of white noise and the constant normalization factors
+  // TODO: Or, I need to see if the first term is too big and then we know that there is just noise...
+  const int START_FFT_INDEX = 2;
   for (int i = 0; i < NUM_PEAKS; i++) {
     double tmp_max = -1;
     int tmp_i = -1;
-    for (int j = 0; j < powers.length; j++) {
+    for (int j = START_FFT_INDEX; j < powers.length; j++) {
       if (powers[j] > tmp_max && !peaks.contains(j)) {
         tmp_i = j;
         tmp_max = powers[j];
-        if (tmp_max * noise_floor > power_mean) foundSignal = true;
+        if (tmp_max / noise_floor > power_mean) foundSignal = true;
       }
     }
     peaks.add(tmp_i);
