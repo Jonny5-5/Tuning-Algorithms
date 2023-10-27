@@ -28,6 +28,7 @@ double findFundFreqWelchHPS(Array sig, double fs, {double noise_floor = 2}) {
   const int minSigLength = 2048;
   if (sig.length < minSigLength) {
     debugPrint("Not enough samples! Expecting > 2048. Got ${sig.length}");
+    return ERROR_FREQ;
   }
   if (!isPowerOf2(sig.length)) {
     debugPrint("WARNING: signal length is not a power of 2");
