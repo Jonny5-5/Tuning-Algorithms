@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:welch_psd/analysis.dart';
+import 'package:welch_psd/benchmark.dart';
 
 void main() {
   runApp(const MainApp());
