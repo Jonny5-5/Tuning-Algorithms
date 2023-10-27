@@ -5,6 +5,7 @@ import 'package:scidart/numdart.dart';
 import 'package:scidart/scidart.dart';
 
 const double ERROR_FREQ = -1;
+const double SAMPLE_RATE = 8192;
 
 /*
 Testing from the benchmark
@@ -37,6 +38,11 @@ double findFundFreqWelchHPS(Array sig, double fs, {double noise_floor = 2}) {
     if (sig.length < 4096) {
       sig = Array(sig.sublist(0, 2048));
     }
+  }
+  if (fs != SAMPLE_RATE) {
+    debugPrint("What are you doing?");
+    debugPrint("The sample_rate should be $SAMPLE_RATE");
+    debugPrint("This algorthm shouldn't care, but double check...");
   }
 
   // Split the signal into smaller windows
