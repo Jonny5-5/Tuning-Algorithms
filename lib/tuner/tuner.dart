@@ -25,25 +25,37 @@ bool isPowerOf2(int length) {
 /// and "Harmonic Product Spectrum Theory"
 /// [sig] should be of length (multiple of 2)
 double findFundFreqWelchHPS(Array sig, double fs, {double noise_floor = 2}) {
+  // Check that there are enough samples
   const int minSigLength = 2048;
   if (sig.length < minSigLength) {
     debugPrint("Not enough samples! Expecting > 2048. Got ${sig.length}");
     return ERROR_FREQ;
   }
+
+  // Check that the signal is a power of 2
   if (!isPowerOf2(sig.length)) {
     debugPrint("WARNING: signal length is not a power of 2");
-    debugPrint("Truncating to power of 2...");
-    if (sig.length > 4096) {
-      sig = Array(sig.sublist(0, 4096));
-    }
-    if (sig.length < 4096) {
-      sig = Array(sig.sublist(0, 2048));
-    }
   }
+
+  // Trim the array to either samplerate/2 or samplerate/4
+  if (sig.length > SAMPLE_RATE / 2) {
+    debugPrint("Cutting length to ${SAMPLE_RATE ~/ 2}");
+    sig = Array(sig.sublist(0, SAMPLE_RATE ~/ 2));
+  } else if (sig.length > SAMPLE_RATE ~/ 4) {
+    sig = Array(sig.sublist(0, SAMPLE_RATE ~/ 4));
+  }
+
+  // Add a warning that the samplerate should be the rate passed into the function
   if (fs != SAMPLE_RATE) {
     debugPrint("What are you doing?");
     debugPrint("The sample_rate should be $SAMPLE_RATE");
     debugPrint("This algorthm shouldn't care, but double check...");
+  }
+
+  // Normalize the signal to get rid of the noise.
+  double sig_avg = mean(sig);
+  for (int i = 0; i < sig.length; i++) {
+    sig[i] -= sig_avg;
   }
 
   // Split the signal into smaller windows
@@ -87,13 +99,10 @@ double findFundFreqWelchHPS(Array sig, double fs, {double noise_floor = 2}) {
   // Find the top 5 peaks
   List<int> peaks = [];
   const int NUM_PEAKS = 5;
-  // This is the first bin that will be searched for a "high power".
-  // I need to skip the first few terms because of white noise and the constant normalization factors.
-  const int START_FFT_INDEX = 2;
   for (int i = 0; i < NUM_PEAKS; i++) {
     double tmp_max = -1;
     int tmp_i = -1;
-    for (int j = START_FFT_INDEX; j < powers.length; j++) {
+    for (int j = 0; j < powers.length; j++) {
       if (powers[j] > tmp_max && !peaks.contains(j)) {
         tmp_i = j;
         tmp_max = powers[j];
