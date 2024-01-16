@@ -16,6 +16,10 @@ class MainApp extends StatelessWidget {
     bench();
   }
 
+  void downsample() {
+    downsample_test();
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
@@ -31,6 +35,10 @@ class MainApp extends StatelessWidget {
               ElevatedButton(
                 onPressed: benchmark,
                 child: const Text('Benchmark'),
+              ),
+              ElevatedButton(
+                onPressed: downsample,
+                child: const Text('Downsample test'),
               ),
             ],
           ),

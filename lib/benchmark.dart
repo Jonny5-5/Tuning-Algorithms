@@ -1,11 +1,13 @@
 import 'dart:math';
 
 // TODO: These depend on other packages??
+import 'package:flutter/material.dart';
 import 'package:scidart/numdart.dart';
 import 'package:scidart/scidart.dart';
 import 'package:welch_psd/data/data.dart';
 import 'package:welch_psd/data/data_guitar_8000.dart';
 import 'package:welch_psd/tuner/tuner.dart';
+import 'dart:developer' as logger;
 
 /// Returns true if the calculated value is within [percent] of the [expected]
 bool test_signal(Array signal, double fs, double expected, double percent) {
@@ -270,4 +272,51 @@ void analyze() {
   print('The original and estimated frequency need be very close each other');
   print('Original frequency: $f1');
   print('Estimated frequency: $fEstimated');
+}
+
+void downsample_test() {
+  print("downsample testing");
+
+  // Generate a signal
+  var sinwave = generateSin(44100, 440, 44100);
+  // logger.log("$sinwave");
+
+  // Check that we see 440hz
+  var res = test_signal(Array(sinwave), 44100, 440, 0.95);
+  if (res) {
+    print("Got the correct INITIAL signal");
+  } else {
+    print("Couldn't get the correct INITIAL signal");
+  }
+
+  // Downsample the signal
+  var sig = _filterAndDecimate(Array(sinwave), 44100, 8820);
+  // logger.log("$sig");
+
+  res = test_signal(sig, 8820, 440, 0.95);
+  if (res) {
+    print("succesfully downsampled");
+  } else {
+    print("Couldn't downsample correctly");
+  }
+}
+
+/// This function will filter and then decimate the signal and return
+/// an [Array] object with the correct samples.
+Array _filterAndDecimate(Array signal, int sampleRate, int targetRate) {
+  // Make the filter
+  int filterOrder = 4;
+  var b = firwin(
+    filterOrder,
+    Array([targetRate.toDouble()]),
+    fs: sampleRate.toDouble(),
+    // pass_zero: "lowpass",
+  );
+
+  // Apply the low-pass filter using lfilter
+  signal = lfilter(b, Array([1.0]), signal);
+
+  // Downsample the filtered signal
+  int decimationFactor = sampleRate ~/ targetRate;
+  return signal.getRangeArray(0, signal.length, step: decimationFactor);
 }
